@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env
+
+# Data (generated)
+data/*.csv
+data/*.json
+data/*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (frontend)
+node_modules/
+frontend/dist/
+frontend/.next/
+
+# Credentials
+config/*.yaml
+!config/dentist_clinic_example.yaml
+*.pem
+*.key

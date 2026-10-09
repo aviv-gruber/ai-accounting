@@ -1,0 +1,47 @@
+# Example client configuration — Dentist Clinic
+# Each client gets a YAML config like this (not custom code)
+
+business:
+  name: "מרפאת שיניים ד״ר יעל כהן"
+  type: "מרפאת שיניים"
+  tax_id: "123456789"
+  vat_exempt: false
+
+connectors:
+  - type: bank
+    provider: leumi
+    account_id: "12-345-678901"
+    access: read_only
+  - type: spreadsheet
+    provider: excel
+    path: "/path/to/clinic/finances.xlsx"
+    sheets:
+      transactions: "תנועות"
+      invoices: "חשבוניות"
+  - type: calendar
+    provider: google
+    calendar_id: "clinic@gmail.com"
+
+mappings:
+  # Map client's column names to standard schema
+  bank_columns:
+    date: "תאריך"
+    amount: "סכום"
+    description: "תיאור"
+    balance: "יתרה"
+  invoice_columns:
+    number: "מס חשבונית"
+    date: "תאריך"
+    amount: "סכום לפני מע״מ"
+    vat: "מע״מ"
+    total: "סה״כ"
+    customer: "לקוח"
+
+alerts:
+  cashflow_threshold: 10000  # ₪ — alert when projected balance drops below
+  overdue_days: 7  # days after due date to flag overdue
+  whatsapp_number: "+972501234567"
+
+schedule:
+  daily_summary: "08:00"
+  weekly_report: "sunday 09:00"
