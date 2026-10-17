@@ -112,6 +112,7 @@ class MaterialItem(BaseModel):
     unit_cost: Decimal
     unit: str = "יחידה"  # e.g., "יחידה", "מ״ל", "גרם"
     vendor_id: str
+    shelf_life_months: Optional[int] = None
 
 
 class MaterialUsage(BaseModel):
