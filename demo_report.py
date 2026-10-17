@@ -120,6 +120,34 @@ def generate_report() -> str:
              "cashGapDays": c.cash_gap_days, "recommendation": c.recommendation}
             for c in conflicts
         ],
+        "bankTransactions": [
+            {
+                "date": tx.date.isoformat(),
+                "amount": float(tx.amount),
+                "balanceAfter": float(tx.balance_after),
+                "description": tx.description,
+                "category": tx.category,
+                "transactionType": tx.transaction_type.value,
+                "counterparty": tx.counterparty or "",
+            }
+            for tx in clinic.bank_transactions
+        ],
+        "invoices": [
+            {
+                "id": inv.id,
+                "invoiceNumber": inv.invoice_number,
+                "date": inv.date.isoformat(),
+                "dueDate": inv.due_date.isoformat(),
+                "amount": float(inv.amount),
+                "vatAmount": float(inv.vat_amount),
+                "total": float(inv.total),
+                "status": inv.status.value,
+                "counterparty": inv.counterparty,
+                "description": inv.description,
+                "isIncoming": inv.is_incoming,
+            }
+            for inv in clinic.invoices
+        ],
         "dateRange": {
             "min": min(ev.date for ev in clinic.service_events).isoformat(),
             "max": max(ev.date for ev in clinic.service_events).isoformat(),
@@ -192,6 +220,7 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
             <li><a href="#" data-page="page-materials" onclick="showPage('page-materials');return false;">🔧 חומרים ומלאי</a></li>
             <li><a href="#" data-page="page-patients" onclick="showPage('page-patients');return false;">👥 מטופלים</a></li>
             <li><a href="#" data-page="page-insights" onclick="showPage('page-insights');return false;">🤖 תובנות AI</a></li>
+            <li><a href="#" data-page="page-bank" onclick="showPage('page-bank');return false;">🏦 חשבון בנק</a></li>
         </ul>
     </nav>
 
@@ -265,6 +294,23 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
                     </div>
                 </div>
                 <div id="insightCards"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: Bank Account -->
+        <div class="page" id="page-bank" style="display:none;">
+            <div class="card">
+                <h2><span class="emoji">🏦</span> יתרת חשבון בנק</h2>
+                <div class="kpi-grid" id="bankKPIs"></div>
+            </div>
+            <div class="card">
+                <h2><span class="emoji">📋</span> תנועות אחרונות</h2>
+                <div id="bankTransactionsTable"></div>
+            </div>
+            <div class="card">
+                <h2><span class="emoji">🔗</span> סגירה — התאמה בנק ↔ חשבוניות</h2>
+                <p class="hint">התאמה אוטומטית בין תנועות הבנק לחשבוניות פתוחות</p>
+                <div id="reconciliationView"></div>
             </div>
         </div>
 
@@ -516,6 +562,37 @@ tr:hover { background:#f8fafc; }
 }
 .evidence-panel.visible { display:block; }
 
+/* Bank page */
+.balance-chart { width:100%; height:200px; position:relative; margin:24px 0 0; }
+.balance-chart canvas { width:100% !important; height:100% !important; }
+.recon-section { margin-bottom:24px; }
+.recon-section h3 { font-size:16px; color:#1e3a5f; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; }
+.recon-match {
+    display:flex; gap:12px; align-items:center; padding:12px 16px;
+    background:#f0fdf4; border-radius:8px; margin-bottom:8px; border-right:3px solid #16a34a;
+}
+.recon-unmatched-bank {
+    display:flex; gap:12px; align-items:center; padding:12px 16px;
+    background:#fffbeb; border-radius:8px; margin-bottom:8px; border-right:3px solid #f59e0b;
+}
+.recon-unmatched-inv {
+    display:flex; gap:12px; align-items:center; padding:12px 16px;
+    background:#fef2f2; border-radius:8px; margin-bottom:8px; border-right:3px solid #dc2626;
+}
+.recon-icon { font-size:20px; flex-shrink:0; }
+.recon-body { flex:1; font-size:13px; line-height:1.6; }
+.recon-body strong { color:#1e3a5f; }
+.recon-amount { font-weight:700; font-variant-numeric:tabular-nums; direction:ltr; white-space:nowrap; }
+.recon-summary {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;
+}
+.recon-stat {
+    background:#f8fafc; border-radius:10px; padding:16px; text-align:center;
+}
+.recon-stat .rs-val { font-size:24px; font-weight:700; color:#1e3a5f; }
+.recon-stat .rs-lbl { font-size:13px; color:#64748b; margin-top:4px; }
+@media(max-width:700px) { .recon-summary { grid-template-columns:1fr; } }
+
 /* Footer */
 .footer { text-align:center; padding:32px; color:#94a3b8; font-size:13px; border-top:1px solid #e2e8f0; margin-top:16px; }
 .footer .brand { font-weight:700; color:#2563eb; font-size:15px; }
@@ -684,6 +761,7 @@ function renderPage(id) {
     else if (id === 'page-materials') renderMaterials();
     else if (id === 'page-patients') renderPatients(evts);
     else if (id === 'page-insights') renderInsights(evts);
+    else if (id === 'page-bank') renderBank();
 }
 
 // --- Overview ---
@@ -1028,6 +1106,146 @@ function toggleEvidence(id, btn) {
     var vis = panel.classList.contains('visible');
     panel.classList.toggle('visible');
     if (btn) btn.textContent = vis ? 'הצג נתונים ▾' : 'הסתר נתונים ▴';
+}
+
+// --- Bank Account (NOT date-filtered — shows full account state) ---
+function renderBank() {
+    var txs = DATA.bankTransactions;
+    if (!txs || txs.length === 0) {
+        document.getElementById('bankKPIs').innerHTML = '<div style="padding:20px;color:#64748b">אין תנועות בנק</div>';
+        return;
+    }
+    var last = txs[txs.length - 1];
+    var totalIn = 0, totalOut = 0;
+    txs.forEach(function(t) { if (t.amount > 0) totalIn += t.amount; else totalOut += Math.abs(t.amount); });
+
+    // KPIs
+    var balClr = last.balanceAfter >= 0 ? '#16a34a' : '#dc2626';
+    document.getElementById('bankKPIs').innerHTML =
+        '<div class="kpi-tile"><div class="kpi-label">יתרה נוכחית</div><div class="kpi-value" style="color:'+balClr+'">'+ils(last.balanceAfter)+'</div></div>' +
+        tile('סה״כ נכנס', ils(totalIn)) +
+        tile('סה״כ יצא', ils(totalOut)) +
+        tile('מספר תנועות', txs.length.toLocaleString('he-IL'));
+
+    // Transactions table (last 50)
+    var recent = txs.slice().reverse().slice(0, 50);
+    var h = '<table><thead><tr><th>תאריך</th><th>תיאור</th><th>צד נגדי</th><th>סכום</th><th>יתרה</th></tr></thead><tbody>';
+    recent.forEach(function(t) {
+        var amtClr = t.amount >= 0 ? '#16a34a' : '#dc2626';
+        var balC = t.balanceAfter < 10000 ? 'color:#dc2626;font-weight:600' : '';
+        h += '<tr>' +
+             '<td class="num" style="direction:ltr;white-space:nowrap">'+t.date+'</td>' +
+             '<td>'+t.description+'</td>' +
+             '<td class="name">'+(t.counterparty||'—')+'</td>' +
+             '<td class="num" style="color:'+amtClr+'">'+ils(t.amount)+'</td>' +
+             '<td class="num" style="'+balC+'">'+ils(t.balanceAfter)+'</td></tr>';
+    });
+    h += '</tbody></table>';
+    document.getElementById('bankTransactionsTable').innerHTML = h;
+
+    // Reconciliation
+    renderReconciliation();
+}
+
+function renderReconciliation() {
+    var txs = DATA.bankTransactions;
+    var invs = DATA.invoices;
+
+    // Build lookup of invoices by counterparty+approx amount for matching
+    var matched = [];
+    var unmatchedBank = [];
+    var unmatchedInv = [];
+    var usedInvIds = {};
+    var usedTxIdx = {};
+
+    // For each income bank tx, try to match to an incoming invoice
+    // For each expense bank tx, try to match to an outgoing invoice
+    txs.forEach(function(tx, idx) {
+        var found = false;
+        for (var i = 0; i < invs.length; i++) {
+            if (usedInvIds[invs[i].id]) continue;
+            var inv = invs[i];
+            // Match: same counterparty, same direction, amount within 1 NIS
+            var sameDirection = (tx.amount > 0 && inv.isIncoming) || (tx.amount < 0 && !inv.isIncoming);
+            var amtMatch = Math.abs(Math.abs(tx.amount) - inv.total) < 1;
+            var cpMatch = tx.counterparty && inv.counterparty &&
+                          tx.counterparty.trim() === inv.counterparty.trim();
+            if (sameDirection && amtMatch && cpMatch) {
+                matched.push({tx: tx, txIdx: idx, inv: inv});
+                usedInvIds[inv.id] = true;
+                usedTxIdx[idx] = true;
+                found = true;
+                break;
+            }
+        }
+    });
+
+    // Collect unmatched
+    txs.forEach(function(tx, idx) {
+        if (!usedTxIdx[idx]) unmatchedBank.push(tx);
+    });
+    invs.forEach(function(inv) {
+        if (!usedInvIds[inv.id] && (inv.status === 'נשלחה' || inv.status === 'באיחור'))
+            unmatchedInv.push(inv);
+    });
+
+    // Summary
+    var h = '<div class="recon-summary">' +
+            '<div class="recon-stat"><div class="rs-val" style="color:#16a34a">'+matched.length+'</div><div class="rs-lbl">תנועות מותאמות</div></div>' +
+            '<div class="recon-stat"><div class="rs-val" style="color:#f59e0b">'+unmatchedBank.length+'</div><div class="rs-lbl">תנועות בנק ללא חשבונית</div></div>' +
+            '<div class="recon-stat"><div class="rs-val" style="color:#dc2626">'+unmatchedInv.length+'</div><div class="rs-lbl">חשבוניות פתוחות</div></div>' +
+            '</div>';
+
+    // Matched section (show last 10)
+    if (matched.length > 0) {
+        h += '<div class="recon-section"><h3>✅ תנועות מותאמות (אחרונות '+Math.min(matched.length,10)+')</h3>';
+        matched.slice(-10).reverse().forEach(function(m) {
+            h += '<div class="recon-match">' +
+                 '<div class="recon-icon">✅</div>' +
+                 '<div class="recon-body">' +
+                 '<strong>'+m.tx.counterparty+'</strong> · '+m.tx.date+'<br>' +
+                 'חשבונית '+m.inv.invoiceNumber+' — '+m.inv.description+
+                 '</div><div class="recon-amount" style="color:#16a34a">'+ils(Math.abs(m.tx.amount))+'</div></div>';
+        });
+        h += '</div>';
+    }
+
+    // Unmatched bank transactions (show last 10)
+    if (unmatchedBank.length > 0) {
+        h += '<div class="recon-section"><h3>⚠️ תנועות בנק ללא חשבונית מתאימה ('+unmatchedBank.length+')</h3>';
+        unmatchedBank.slice(-10).reverse().forEach(function(tx) {
+            h += '<div class="recon-unmatched-bank">' +
+                 '<div class="recon-icon">⚠️</div>' +
+                 '<div class="recon-body">' +
+                 '<strong>'+(tx.counterparty||tx.description)+'</strong> · '+tx.date+'<br>' +
+                 tx.description+
+                 '</div><div class="recon-amount" style="color:'+(tx.amount>=0?'#16a34a':'#dc2626')+'">'+ils(tx.amount)+'</div></div>';
+        });
+        h += '</div>';
+    }
+
+    // Unpaid invoices
+    if (unmatchedInv.length > 0) {
+        h += '<div class="recon-section"><h3>🔴 חשבוניות פתוחות — לא נפרעו ('+unmatchedInv.length+')</h3>';
+        unmatchedInv.forEach(function(inv) {
+            var statusClr = inv.status === 'באיחור' ? '#dc2626' : '#f59e0b';
+            var direction = inv.isIncoming ? 'לקבל מ-' : 'לשלם ל-';
+            var overdue = inv.status === 'באיחור' ? ' · <span style="color:#dc2626;font-weight:600">באיחור!</span>' : '';
+            h += '<div class="recon-unmatched-inv">' +
+                 '<div class="recon-icon">📄</div>' +
+                 '<div class="recon-body">' +
+                 '<strong>'+direction+inv.counterparty+'</strong> · חשבונית '+inv.invoiceNumber+overdue+'<br>' +
+                 inv.description+' · תאריך פירעון: '+inv.dueDate+
+                 '</div><div class="recon-amount" style="color:'+statusClr+'">'+ils(inv.total)+'</div></div>';
+        });
+        h += '</div>';
+    }
+
+    if (matched.length === 0 && unmatchedBank.length === 0 && unmatchedInv.length === 0) {
+        h += '<div style="padding:20px;text-align:center;color:#64748b">אין נתונים להצגה</div>';
+    }
+
+    document.getElementById('reconciliationView').innerHTML = h;
 }
 
 // === INIT ===
