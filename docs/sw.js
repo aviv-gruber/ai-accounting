@@ -1,13 +1,7 @@
-// SmartBooks AI — Service Worker for offline PWA
-const CACHE_NAME = 'smartbooks-v1';
-const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+// SmartBooks AI — Service Worker (network-first for instant updates)
+const CACHE_NAME = 'smartbooks-v2';
 
 self.addEventListener('install', function(event) {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(function(cache) {
-            return cache.addAll(ASSETS);
-        })
-    );
     self.skipWaiting();
 });
 
@@ -25,8 +19,16 @@ self.addEventListener('activate', function(event) {
 
 self.addEventListener('fetch', function(event) {
     event.respondWith(
-        caches.match(event.request).then(function(cached) {
-            return cached || fetch(event.request);
+        fetch(event.request).then(function(response) {
+            // Got network response — cache it and return
+            var clone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+                cache.put(event.request, clone);
+            });
+            return response;
+        }).catch(function() {
+            // Offline — fall back to cache
+            return caches.match(event.request);
         })
     );
 });
