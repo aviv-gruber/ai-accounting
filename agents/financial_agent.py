@@ -25,6 +25,11 @@ from pathlib import Path
 import anthropic
 
 from core.cashflow_engine import project_cashflow, detect_payment_term_conflicts
+from core.profitability_engine import (
+    profitability_by_treatment_type,
+    profitability_by_patient,
+    overall_cost_breakdown,
+)
 from schema.standard_schema import BusinessSnapshot, InvoiceStatus
 from skills.chart_skill import (
     expenses_by_category,
@@ -128,6 +133,31 @@ TOOLS = [
             },
             "required": ["chart_type"],
         },
+    },
+    {
+        "name": "get_treatment_profitability",
+        "description": "ניתוח רווחיות לפי סוג טיפול — כמה מרוויחים מכל סוג טיפול (כולל פירוט חומרים, כ״א, תקורה, מעבדה)",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_patient_profitability",
+        "description": "ניתוח רווחיות לפי מטופל — אילו מטופלים מייצרים הכי הרבה רווח, כולל פירוט טיפולים",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "top_n": {
+                    "type": "integer",
+                    "description": "כמה מטופלים להציג (ברירת מחדל: 10)",
+                    "default": 10,
+                }
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "get_cost_breakdown",
+        "description": "פירוט מבנה העלויות הכולל: חומרים, מעבדה, כוח אדם, ותקורה — באחוזים ובסכומים",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
     },
 ]
 
@@ -289,6 +319,58 @@ def _execute_tool(name: str, args: dict, snapshot: BusinessSnapshot) -> str:
         # Open in browser
         os.system(f"open {path}")
         result = {"גרף_נוצר": str(path), "הודעה": "הגרף נפתח בדפדפן"}
+
+    elif name == "get_treatment_profitability":
+        treatments = profitability_by_treatment_type(snapshot)
+        result = {
+            "רווחיות_לפי_טיפול": [
+                {
+                    "טיפול": t.service_name,
+                    "קטגוריה": t.category,
+                    "כמות": t.count,
+                    "הכנסה_כוללת": float(t.total_revenue),
+                    "עלות_חומרים": float(t.total_materials),
+                    "עלות_מעבדה": float(t.total_lab),
+                    "עלות_כא": float(t.total_labor),
+                    "תקורה": float(t.total_overhead),
+                    "עלות_כוללת": float(t.total_cost),
+                    "רווח_כולל": float(t.total_profit),
+                    "רווח_ממוצע_לטיפול": float(t.avg_profit),
+                    "מרג׳ין_גולמי": f"{t.gross_margin}%",
+                }
+                for t in treatments
+            ],
+        }
+
+    elif name == "get_patient_profitability":
+        top_n = args.get("top_n", 10)
+        patients = profitability_by_patient(snapshot, top_n=top_n)
+        result = {
+            "רווחיות_לפי_מטופל": [
+                {
+                    "מטופל": p.patient_name,
+                    "ביקורים": p.visit_count,
+                    "הכנסה": float(p.total_revenue),
+                    "עלות": float(p.total_cost),
+                    "רווח": float(p.total_profit),
+                    "מרג׳ין": f"{p.gross_margin}%",
+                    "טיפולים": list(set(p.treatments)),
+                }
+                for p in patients
+            ],
+        }
+
+    elif name == "get_cost_breakdown":
+        bd = overall_cost_breakdown(snapshot)
+        result = {
+            "מבנה_עלויות": {
+                "חומרים": {"סכום": float(bd.total_materials), "אחוז": f"{bd.materials_pct}%"},
+                "מעבדה": {"סכום": float(bd.total_lab), "אחוז": f"{bd.lab_pct}%"},
+                "כוח_אדם": {"סכום": float(bd.total_labor), "אחוז": f"{bd.labor_pct}%"},
+                "תקורה": {"סכום": float(bd.total_overhead), "אחוז": f"{bd.overhead_pct}%"},
+            },
+            "עלות_כוללת": float(bd.total_cost),
+        }
 
     else:
         result = {"שגיאה": f"כלי לא מוכר: {name}"}

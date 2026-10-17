@@ -105,6 +105,75 @@ class VATReport(BaseModel):
     vat_payable: Decimal  # net VAT to pay
 
 
+class MaterialItem(BaseModel):
+    """A consumable material used in a service/treatment."""
+    id: str
+    name: str
+    unit_cost: Decimal
+    unit: str = "יחידה"  # e.g., "יחידה", "מ״ל", "גרם"
+    vendor_id: str
+
+
+class MaterialUsage(BaseModel):
+    """Quantity of a material consumed in a specific service."""
+    material_id: str
+    material_name: str
+    quantity: Decimal
+    unit_cost: Decimal
+    total_cost: Decimal
+
+
+class ServiceType(BaseModel):
+    """A type of service offered by the business (e.g., a dental treatment).
+
+    Contains the standard bill of materials and time allocation.
+    """
+    id: str
+    name: str
+    category: str  # e.g., "טיפולים משמרים", "אורתודונטיה", "כירורגיה"
+    standard_price: Decimal  # list price before discounts
+    duration_minutes: int  # chair time
+    materials: list[MaterialUsage] = Field(default_factory=list)
+    requires_lab: bool = False
+    lab_cost: Decimal = Decimal("0")
+    staff_roles_required: list[str] = Field(
+        default_factory=list,
+        description="Which employee roles are needed (e.g., ['רופא', 'סייעת'])",
+    )
+
+
+class OverheadPool(BaseModel):
+    """A pool of indirect costs allocated to services by a cost driver.
+
+    Cost driver is time (minutes) — the primary driver for service businesses.
+    """
+    name: str
+    monthly_cost: Decimal
+    allocation_basis: str = "זמן (דקות)"  # always time-based for now
+
+
+class ServiceEvent(BaseModel):
+    """A single service delivered to a patient/client."""
+    id: str
+    date: date
+    service_type_id: str
+    service_name: str
+    patient_name: str
+    revenue: Decimal  # actual price charged (may differ from list price)
+    duration_minutes: int
+    materials_used: list[MaterialUsage]
+    lab_cost: Decimal = Decimal("0")
+    direct_labor_cost: Decimal = Field(
+        description="Staff cost allocated by time for this service"
+    )
+    overhead_allocated: Decimal = Field(
+        description="Facility/equipment cost allocated by time for this service"
+    )
+    total_cost: Decimal = Field(description="Sum of all costs")
+    gross_profit: Decimal = Field(description="Revenue - total_cost")
+    gross_margin: Decimal = Field(description="Gross profit / revenue, as fraction")
+
+
 class BusinessSnapshot(BaseModel):
     """Complete financial state of a business at a point in time."""
     business_name: str
@@ -117,3 +186,8 @@ class BusinessSnapshot(BaseModel):
     customers: list[Customer]
     vat_reports: list[VATReport]
     current_balance: Decimal
+    # Treatment-level data (optional — populated when service-level tracking exists)
+    service_types: list[ServiceType] = Field(default_factory=list)
+    materials_catalog: list[MaterialItem] = Field(default_factory=list)
+    service_events: list[ServiceEvent] = Field(default_factory=list)
+    overhead_pools: list[OverheadPool] = Field(default_factory=list)
