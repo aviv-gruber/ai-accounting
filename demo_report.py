@@ -1256,7 +1256,15 @@ renderPage('page-overview');
 
 // === SERVICE WORKER ===
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(function(){});
+    navigator.serviceWorker.register('./sw.js', {updateViaCache: 'none'}).then(function(reg) {
+        // Check for updates immediately on every load
+        reg.update();
+        // Auto-reload when a new SW takes over
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+            if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+    }).catch(function(){});
 }
 """
 
