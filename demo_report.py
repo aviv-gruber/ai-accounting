@@ -23,6 +23,10 @@ from pathlib import Path
 
 from synthetic_biz.dentist_clinic import generate_dentist_clinic
 from core.cashflow_engine import project_cashflow, detect_payment_term_conflicts
+from connectors.discount_bank import load_discount_transactions
+
+# Path to real bank data (scraped from Discount Bank via israeli-bank-scrapers)
+_REAL_BANK_DATA = Path(__file__).parent.parent / "agenticai" / "financial_documentation" / "data" / "scraped_raw.json"
 
 
 class _DecimalEncoder(json.JSONEncoder):
@@ -30,6 +34,59 @@ class _DecimalEncoder(json.JSONEncoder):
         if isinstance(o, Decimal):
             return float(o)
         return super().default(o)
+
+
+def _build_blended_bank_transactions(
+    synthetic_txns: list,
+) -> list[dict]:
+    """Blend real Discount Bank transactions into the synthetic bank data.
+
+    Real transactions are tagged with source='discount_bank' so the UI can
+    distinguish them.  They are interleaved chronologically with the
+    synthetic transactions and the running balance is recomputed.
+    """
+    # Serialize synthetic
+    all_txns = [
+        {
+            "date": tx.date.isoformat(),
+            "amount": float(tx.amount),
+            "description": tx.description,
+            "category": tx.category,
+            "transactionType": tx.transaction_type.value,
+            "counterparty": tx.counterparty or "",
+            "source": "synthetic",
+        }
+        for tx in synthetic_txns
+    ]
+
+    # Load real transactions (last 3 months)
+    if _REAL_BANK_DATA.exists():
+        try:
+            real_txns = load_discount_transactions(
+                _REAL_BANK_DATA, account_number="0174830426", last_n_months=3,
+            )
+            for tx in real_txns:
+                all_txns.append({
+                    "date": tx.date.isoformat(),
+                    "amount": float(tx.amount),
+                    "description": tx.description,
+                    "category": tx.category,
+                    "transactionType": tx.transaction_type.value,
+                    "counterparty": tx.counterparty or "",
+                    "source": "discount_bank",
+                })
+            print(f"  Blended {len(real_txns)} real Discount Bank transactions")
+        except Exception as e:
+            print(f"  Warning: could not load real bank data: {e}")
+
+    # Sort chronologically and recompute running balance
+    all_txns.sort(key=lambda t: t["date"])
+    balance = 25000.0  # opening balance
+    for t in all_txns:
+        balance += t["amount"]
+        t["balanceAfter"] = round(balance, 2)
+
+    return all_txns
 
 
 def generate_report() -> str:
@@ -120,18 +177,7 @@ def generate_report() -> str:
              "cashGapDays": c.cash_gap_days, "recommendation": c.recommendation}
             for c in conflicts
         ],
-        "bankTransactions": [
-            {
-                "date": tx.date.isoformat(),
-                "amount": float(tx.amount),
-                "balanceAfter": float(tx.balance_after),
-                "description": tx.description,
-                "category": tx.category,
-                "transactionType": tx.transaction_type.value,
-                "counterparty": tx.counterparty or "",
-            }
-            for tx in clinic.bank_transactions
-        ],
+        "bankTransactions": _build_blended_bank_transactions(clinic.bank_transactions),
         "invoices": [
             {
                 "id": inv.id,
@@ -1127,14 +1173,29 @@ function renderBank() {
         tile('סה״כ יצא', ils(totalOut)) +
         tile('מספר תנועות', txs.length.toLocaleString('he-IL'));
 
+    // Count real vs synthetic
+    var realCount = txs.filter(function(t){return t.source==='discount_bank';}).length;
+    var synthCount = txs.length - realCount;
+
+    // Source summary
+    var srcH = '<div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px">' +
+               '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2563eb;margin-left:4px"></span> בנק דיסקונט (נתונים אמיתיים): '+realCount+'</span>' +
+               '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;margin-left:4px"></span> סימולציה: '+synthCount+'</span></div>';
+
     // Transactions table (last 50)
     var recent = txs.slice().reverse().slice(0, 50);
-    var h = '<table><thead><tr><th>תאריך</th><th>תיאור</th><th>צד נגדי</th><th>סכום</th><th>יתרה</th></tr></thead><tbody>';
+    var h = srcH + '<table><thead><tr><th>תאריך</th><th>מקור</th><th>תיאור</th><th>צד נגדי</th><th>סכום</th><th>יתרה</th></tr></thead><tbody>';
     recent.forEach(function(t) {
         var amtClr = t.amount >= 0 ? '#16a34a' : '#dc2626';
         var balC = t.balanceAfter < 10000 ? 'color:#dc2626;font-weight:600' : '';
-        h += '<tr>' +
+        var isReal = t.source === 'discount_bank';
+        var srcBadge = isReal ?
+            '<span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">דיסקונט</span>' :
+            '<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:11px">סימולציה</span>';
+        var rowBg = isReal ? 'background:#f0f7ff;' : '';
+        h += '<tr style="'+rowBg+'">' +
              '<td class="num" style="direction:ltr;white-space:nowrap">'+t.date+'</td>' +
+             '<td>'+srcBadge+'</td>' +
              '<td>'+t.description+'</td>' +
              '<td class="name">'+(t.counterparty||'—')+'</td>' +
              '<td class="num" style="color:'+amtClr+'">'+ils(t.amount)+'</td>' +
