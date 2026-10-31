@@ -242,7 +242,10 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SmartBooks">
-<meta name="theme-color" content="#1e3a5f">
+<meta name="theme-color" content="#0f172a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <title>דו״ח פיננסי — {business_name}</title>
@@ -253,21 +256,30 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
 <body>
 
 <div class="header">
+    <div class="header-brand">SmartBooks</div>
     <h1>{business_name}</h1>
-    <div class="subtitle">דו״ח תובנות פיננסיות אינטראקטיבי</div>
+    <div class="subtitle">דו״ח תובנות פיננסיות</div>
 </div>
 
 <div class="page-layout">
 
     <nav class="nav-sidebar" id="sideNav">
         <ul>
-            <li><a href="#" class="active" data-page="page-overview" onclick="showPage('page-overview');return false;">📊 סקירה כללית</a></li>
-            <li><a href="#" data-page="page-treatments" onclick="showPage('page-treatments');return false;">💰 רווחיות טיפולים</a></li>
-            <li><a href="#" data-page="page-materials" onclick="showPage('page-materials');return false;">🔧 חומרים ומלאי</a></li>
-            <li><a href="#" data-page="page-patients" onclick="showPage('page-patients');return false;">👥 מטופלים</a></li>
-            <li><a href="#" data-page="page-insights" onclick="showPage('page-insights');return false;">🤖 תובנות AI</a></li>
-            <li><a href="#" data-page="page-bank" onclick="showPage('page-bank');return false;">🏦 חשבון בנק</a></li>
+            <li><a href="#" class="active" data-page="page-overview" onclick="showPage('page-overview');return false;"><span class="nav-icon">🏠</span><span class="nav-label">ראשי</span></a></li>
+            <li><a href="#" data-page="page-treatments" onclick="showPage('page-treatments');return false;"><span class="nav-icon">💰</span><span class="nav-label">רווחיות</span></a></li>
+            <li><a href="#" data-page="page-insights" onclick="showPage('page-insights');return false;"><span class="nav-icon">🤖</span><span class="nav-label">תובנות</span></a></li>
+            <li><a href="#" data-page="page-bank" onclick="showPage('page-bank');return false;"><span class="nav-icon">🏦</span><span class="nav-label">בנק</span></a></li>
+            <li class="mobile-only"><a href="#" onclick="toggleMore(event);return false;"><span class="nav-icon">☰</span><span class="nav-label">עוד</span></a>
+                <div class="more-menu" id="moreMenu">
+                    <a href="#" data-page="page-materials" onclick="showPage('page-materials');closeMore();return false;"><span class="nav-icon">🔧</span> חומרים ומלאי</a>
+                    <a href="#" data-page="page-patients" onclick="showPage('page-patients');closeMore();return false;"><span class="nav-icon">👥</span> מטופלים</a>
+                </div>
+            </li>
+            <!-- Desktop-only items (hidden on mobile, visible in sidebar) -->
+            <li class="desktop-only"><a href="#" data-page="page-materials" onclick="showPage('page-materials');return false;"><span class="nav-icon">🔧</span><span class="nav-label">חומרים ומלאי</span></a></li>
+            <li class="desktop-only"><a href="#" data-page="page-patients" onclick="showPage('page-patients');return false;"><span class="nav-icon">👥</span><span class="nav-label">מטופלים</span></a></li>
         </ul>
+        <div class="more-backdrop" id="moreBackdrop" onclick="closeMore()"></div>
     </nav>
 
     <div class="main-content">
@@ -291,6 +303,11 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
 
         <!-- PAGE: Overview -->
         <div class="page active" id="page-overview">
+            <div class="hero-card" id="heroCard">
+                <div class="hero-label">יתרת חשבון בנק</div>
+                <div class="hero-value" id="heroBalance">—</div>
+                <div class="hero-sub" id="heroSub"></div>
+            </div>
             <div class="card"><div class="kpi-grid" id="kpiGrid"></div></div>
             <div class="card">
                 <h2><span class="emoji">💸</span> לאן הולך הכסף?</h2>
@@ -306,7 +323,7 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
             <div class="card">
                 <h2><span class="emoji">📊</span> כמה את מרוויחה מכל טיפול?</h2>
                 <p class="hint">לחצי על שורה לפירוט עלויות</p>
-                <div id="treatmentTableContainer"></div>
+                <div class="table-scroll" id="treatmentTableContainer"></div>
             </div>
         </div>
 
@@ -325,7 +342,7 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
             <div class="card">
                 <h2><span class="emoji">👥</span> המטופלים הרווחיים ביותר</h2>
                 <p class="hint">לחצי על שורה לפירוט הטיפולים</p>
-                <div id="patientTableContainer"></div>
+                <div class="table-scroll" id="patientTableContainer"></div>
             </div>
         </div>
 
@@ -351,7 +368,7 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
             </div>
             <div class="card">
                 <h2><span class="emoji">📋</span> תנועות אחרונות</h2>
-                <div id="bankTransactionsTable"></div>
+                <div class="table-scroll" id="bankTransactionsTable"></div>
             </div>
             <div class="card">
                 <h2><span class="emoji">🔗</span> סגירה — התאמה בנק ↔ חשבוניות</h2>
@@ -361,8 +378,8 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
         </div>
 
         <div class="footer">
-            <div class="brand">SmartBooks AI</div>
-            <div style="margin-top:8px;">הדו״ח הזה נוצר אוטומטית מהנתונים הפיננסיים של המרפאה.<br>זה מה שהמערכת שלנו תעשה לכל לקוח — ללא התערבות ידנית.</div>
+            <div class="brand">SmartBooks</div>
+            <div style="margin-top:6px;">נוצר אוטומטית · ללא התערבות ידנית</div>
         </div>
 
     </div>
@@ -383,265 +400,335 @@ _CSS = """
 * { margin:0; padding:0; box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    background:#f8fafc; color:#1e293b; line-height:1.6; direction:rtl;
+    font-family: 'Heebo', -apple-system, BlinkMacSystemFont, sans-serif;
+    background:#faf9f7; color:#1e293b; line-height:1.6; direction:rtl;
+    -webkit-font-smoothing:antialiased;
 }
 
-/* Layout */
+/* === LAYOUT === */
 .header {
-    background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
-    color:white; padding:32px 40px; text-align:center;
-    max-width:1200px; margin:24px auto 0; border-radius:16px;
+    background:linear-gradient(135deg,#0f172a 0%,#164e63 60%,#0d9488 100%);
+    color:white; padding:28px 32px; text-align:center;
+    max-width:960px; margin:16px auto 0; border-radius:20px;
+    position:relative; overflow:hidden;
 }
-.header h1 { font-size:28px; margin-bottom:4px; }
-.header .subtitle { opacity:.85; font-size:16px; }
+.header::after {
+    content:''; position:absolute; top:-50%; right:-30%; width:60%; height:200%;
+    background:radial-gradient(circle,rgba(255,255,255,.06) 0%,transparent 70%);
+    pointer-events:none;
+}
+.header-brand { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; opacity:.5; position:relative; margin-bottom:4px; }
+.header h1 { font-size:22px; font-weight:700; margin-bottom:2px; position:relative; }
+.header .subtitle { opacity:.7; font-size:13px; font-weight:300; position:relative; }
 .page-layout {
-    display:flex; gap:24px; max-width:1200px; margin:0 auto; padding:24px;
+    display:flex; gap:20px; max-width:960px; margin:0 auto; padding:16px;
 }
 .main-content { flex:1; min-width:0; }
+
+/* === NAVIGATION — Desktop sidebar === */
 .nav-sidebar {
-    width:190px; flex-shrink:0; position:sticky; top:24px;
-    height:fit-content; max-height:calc(100vh - 48px); overflow-y:auto;
-    background:white; border-radius:12px; padding:16px 0;
-    box-shadow:0 1px 3px rgba(0,0,0,.08);
+    width:180px; flex-shrink:0; position:sticky; top:16px;
+    height:fit-content; max-height:calc(100vh - 32px); overflow-y:auto;
+    background:white; border-radius:16px; padding:12px 0;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
 }
 .nav-sidebar ul { list-style:none; padding:0; }
 .nav-sidebar li { margin-bottom:2px; }
 .nav-sidebar a {
-    display:block; padding:12px 20px; color:#475569; text-decoration:none;
-    font-size:14px; transition:all .2s; border-right:3px solid transparent;
+    display:flex; align-items:center; gap:10px;
+    padding:12px 18px; color:#64748b; text-decoration:none;
+    font-size:14px; font-weight:500; transition:all .2s;
+    border-right:3px solid transparent; min-height:44px;
 }
-.nav-sidebar a:hover { background:#f1f5f9; color:#1e3a5f; }
-.nav-sidebar a.active { background:#eff6ff; color:#2563eb; font-weight:600; border-right-color:#2563eb; }
+.nav-sidebar a:hover { background:#f0fdfa; color:#0f172a; }
+.nav-sidebar a.active { background:#f0fdfa; color:#0d9488; font-weight:600; border-right-color:#0d9488; }
+.nav-sidebar .nav-icon { font-size:18px; width:24px; text-align:center; flex-shrink:0; }
+.nav-sidebar .nav-label { white-space:nowrap; }
+.nav-sidebar li.mobile-only { display:none; }
+/* "More" sub-items hidden on desktop sidebar — shown inline */
+.more-menu { display:none; position:absolute; bottom:100%; left:0; right:0;
+    background:white; border-radius:16px 16px 0 0; box-shadow:0 -4px 20px rgba(0,0,0,.12);
+    padding:8px 0; z-index:101; }
+.more-menu.visible { display:block; }
+.more-menu a { display:flex; align-items:center; gap:10px; padding:14px 20px;
+    color:#64748b; text-decoration:none; font-size:14px; font-weight:500;
+    min-height:48px; transition:background .15s; }
+.more-menu a:hover { background:#f0fdfa; color:#0d9488; }
+.more-backdrop { display:none; position:fixed; inset:0; z-index:99; }
+.more-backdrop.visible { display:block; }
+
+/* === NAVIGATION — Mobile bottom bar (5 tabs) === */
 @media(max-width:960px) {
-    .page-layout { flex-direction:column; padding-bottom:80px; }
+    .page-layout { flex-direction:column; padding:12px 12px calc(72px + env(safe-area-inset-bottom,0px)); }
     .nav-sidebar {
         display:flex; position:fixed; bottom:0; left:0; right:0; z-index:100;
         width:100%; border-radius:0; padding:0; flex-shrink:unset;
         height:auto; max-height:none; top:auto;
-        box-shadow:0 -2px 10px rgba(0,0,0,.1);
+        box-shadow:0 -1px 12px rgba(0,0,0,.08);
         border-top:1px solid #e2e8f0;
+        background:rgba(255,255,255,.96); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+        padding-bottom:env(safe-area-inset-bottom,0px);
     }
     .nav-sidebar ul { display:flex; width:100%; padding:0; }
     .nav-sidebar li { flex:1; margin:0; }
+    .nav-sidebar li.desktop-only { display:none; }
+    .nav-sidebar li.mobile-only { display:block; }
     .nav-sidebar a {
-        padding:10px 4px; text-align:center; font-size:11px;
-        border-right:none; border-top:3px solid transparent;
-        display:flex; flex-direction:column; align-items:center; gap:2px;
+        padding:8px 4px 6px; text-align:center; font-size:10px; font-weight:500;
+        border-right:none; border-top:2px solid transparent;
+        display:flex; flex-direction:column; align-items:center; gap:1px;
+        min-height:56px; justify-content:center;
     }
-    .nav-sidebar a.active { border-right:none; border-top-color:#2563eb; }
-    .header { margin:12px 12px 0; padding:24px 16px; border-radius:12px; }
-    .header h1 { font-size:22px; }
-    .kpi-grid { grid-template-columns:repeat(2,1fr) !important; }
-    .period-bar { padding:10px 14px; gap:8px; }
-    .period-buttons { flex-wrap:wrap; }
-    .pbtn { padding:5px 10px; font-size:12px; }
-    .card { padding:18px; }
-    .cost-grid { grid-template-columns:1fr 1fr; gap:10px; }
-    .selector-grid { grid-template-columns:repeat(2,1fr); }
-    body { padding-bottom:env(safe-area-inset-bottom); }
+    .nav-sidebar .nav-icon { font-size:22px; width:auto; }
+    .nav-sidebar .nav-label { font-size:10px; }
+    .nav-sidebar a.active { border-right:none; border-top-color:#0d9488; color:#0d9488; background:transparent; }
+    .header { margin:0 0 4px; padding:20px 16px; border-radius:16px; }
+    .header h1 { font-size:20px; }
+    .header .subtitle { font-size:12px; }
 }
 
-/* Pages */
+/* === PAGES === */
 .page { display:none; }
 .page.active { display:block; }
 
-/* Period bar */
+/* === HERO CARD (Cash balance) === */
+.hero-card {
+    background:linear-gradient(135deg,#0f172a 0%,#164e63 100%);
+    border-radius:20px; padding:28px; margin-bottom:16px; color:white;
+    position:relative; overflow:hidden;
+}
+.hero-card::after {
+    content:''; position:absolute; top:-40%; left:-20%; width:50%; height:180%;
+    background:radial-gradient(circle,rgba(13,148,136,.3) 0%,transparent 70%);
+    pointer-events:none;
+}
+.hero-label { font-size:13px; font-weight:400; opacity:.7; position:relative; }
+.hero-value { font-size:42px; font-weight:800; direction:ltr; text-align:right;
+    position:relative; margin:4px 0 8px; letter-spacing:-1px; }
+.hero-sub { font-size:12px; opacity:.6; position:relative; }
+@media(max-width:960px) {
+    .hero-value { font-size:36px; }
+    .hero-card { padding:22px 20px; }
+}
+
+/* === PERIOD BAR === */
 .period-bar {
-    background:white; border-radius:12px; padding:14px 20px; margin-bottom:24px;
-    box-shadow:0 1px 3px rgba(0,0,0,.08);
-    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:white; border-radius:14px; padding:12px 16px; margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
 }
-.period-label { font-weight:600; color:#1e3a5f; font-size:14px; }
-.period-buttons { display:flex; gap:6px; }
+.period-label { font-weight:600; color:#0f172a; font-size:13px; }
+.period-buttons { display:flex; gap:4px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.period-buttons::-webkit-scrollbar { display:none; }
 .pbtn {
-    padding:6px 14px; border:1px solid #e2e8f0; border-radius:8px;
+    padding:8px 16px; border:1px solid #e2e8f0; border-radius:20px;
     background:white; cursor:pointer; font-size:13px; font-family:inherit;
-    transition:all .2s;
+    transition:all .15s; min-height:36px; font-weight:500; white-space:nowrap;
 }
-.pbtn:hover { border-color:#2563eb; background:#eff6ff; }
-.pbtn.active { background:#2563eb; color:white; border-color:#2563eb; }
+.pbtn:hover { border-color:#0d9488; background:#f0fdfa; }
+.pbtn.active { background:#0d9488; color:white; border-color:#0d9488; }
 .period-custom { display:flex; align-items:center; gap:6px; font-size:13px; }
 .period-custom input[type=date] {
-    padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px;
-    font-family:inherit; font-size:13px;
+    padding:8px 10px; border:1px solid #e2e8f0; border-radius:10px;
+    font-family:inherit; font-size:16px; min-height:36px;
 }
-.period-info { font-size:12px; color:#64748b; }
+.period-info { font-size:11px; color:#94a3b8; width:100%; }
+@media(max-width:960px) {
+    .period-bar { padding:10px 12px; gap:6px; border-radius:12px; }
+    .period-buttons { flex-wrap:nowrap; }
+    .pbtn { padding:7px 14px; font-size:12px; flex-shrink:0; }
+    .period-custom { display:none; }
+    .period-label { display:none; }
+}
 
-/* Cards */
+/* === CARDS === */
 .card {
-    background:white; border-radius:12px; padding:28px; margin-bottom:24px;
-    box-shadow:0 1px 3px rgba(0,0,0,.08);
+    background:white; border-radius:16px; padding:24px; margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
 }
 .card h2 {
-    font-size:20px; color:#1e3a5f; margin-bottom:20px;
-    padding-bottom:12px; border-bottom:2px solid #e2e8f0;
+    font-size:18px; color:#0f172a; margin-bottom:16px; font-weight:700;
+    display:flex; align-items:center; gap:8px;
 }
-.card h2 .emoji { margin-left:8px; }
-.hint { font-size:13px; color:#64748b; margin:-12px 0 16px; }
+.card h2 .emoji { font-size:20px; }
+.hint { font-size:12px; color:#94a3b8; margin:-8px 0 14px; font-weight:400; }
+@media(max-width:960px) { .card { padding:18px 16px; border-radius:14px; } }
 
-/* KPI */
-.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-.kpi-tile { background:#f8fafc; border-radius:10px; padding:20px; text-align:center; }
-.kpi-label { font-size:13px; color:#64748b; }
-.kpi-value { font-size:28px; font-weight:700; color:#1e3a5f; margin-top:8px; direction:ltr; }
-@media(max-width:700px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+/* === KPI GRID === */
+.kpi-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.kpi-tile {
+    background:white; border-radius:16px; padding:16px; text-align:right;
+    border:1px solid #f1f0ee; position:relative; overflow:hidden;
+}
+.kpi-tile::before {
+    content:''; position:absolute; top:0; right:0; width:4px; height:100%;
+    background:var(--kpi-accent,#0d9488); border-radius:0 4px 4px 0;
+}
+.kpi-icon { font-size:20px; margin-bottom:6px; }
+.kpi-label { font-size:11px; color:#94a3b8; font-weight:500; letter-spacing:.02em; }
+.kpi-value { font-size:22px; font-weight:800; color:#0f172a; margin-top:2px; direction:ltr; text-align:right; }
+@media(min-width:700px) { .kpi-grid { grid-template-columns:repeat(4,1fr); } }
 
-/* Tables */
-table { width:100%; border-collapse:collapse; }
+/* === TABLE SCROLL WRAPPER === */
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; padding:0 4px; }
+table { width:100%; border-collapse:collapse; min-width:500px; }
 th {
-    background:#f1f5f9; color:#475569; font-weight:600;
-    padding:10px 12px; text-align:right; font-size:13px;
-    border-bottom:2px solid #e2e8f0;
+    background:#faf9f7; color:#64748b; font-weight:600;
+    padding:12px 14px; text-align:right; font-size:12px;
+    border-bottom:2px solid #f1f0ee; white-space:nowrap;
 }
-td { padding:10px 12px; border-bottom:1px solid #f1f5f9; font-size:14px; }
+td { padding:12px 14px; border-bottom:1px solid #f5f4f2; font-size:13px; }
 td.num { text-align:left; font-variant-numeric:tabular-nums; direction:ltr; }
-td.name { font-weight:500; }
+td.name { font-weight:500; color:#0f172a; }
 td.bold { font-weight:700; }
-tr:hover { background:#f8fafc; }
+tr:hover { background:#faf9f7; }
 
-/* Expandable rows */
+/* === EXPANDABLE ROWS === */
 .expandable { cursor:pointer; }
-.expandable:hover { background:#eff6ff !important; }
-.expand-arrow { margin-left:6px; font-size:11px; color:#94a3b8; }
-.detail-row td { padding:0 !important; border-bottom:2px solid #e2e8f0; }
-.detail-content { padding:16px 20px; background:#f8fafc; border-radius:8px; margin:8px 12px; }
-.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.expandable:hover { background:#f0fdfa !important; }
+.expand-arrow { margin-left:6px; font-size:11px; color:#94a3b8; transition:transform .2s; }
+.detail-row td { padding:0 !important; border-bottom:2px solid #f1f0ee; }
+.detail-content { padding:14px 16px; background:#faf9f7; border-radius:12px; margin:8px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .detail-item {
-    display:flex; justify-content:space-between; padding:10px 14px;
-    background:white; border-radius:6px; font-size:13px;
+    display:flex; justify-content:space-between; padding:10px 12px;
+    background:white; border-radius:10px; font-size:13px;
 }
-.detail-label { color:#64748b; }
-.detail-value { font-weight:600; direction:ltr; }
+.detail-label { color:#94a3b8; font-weight:400; }
+.detail-value { font-weight:600; direction:ltr; color:#0f172a; }
 
-/* Margin bar */
+/* === MARGIN BAR === */
 .bar-cell { display:flex; align-items:center; gap:8px; direction:ltr; }
-.bar { height:20px; border-radius:4px; min-width:4px; }
-.bar-cell span { font-size:13px; font-weight:600; white-space:nowrap; }
+.bar-track { background:#f1f0ee; border-radius:8px; height:22px; flex:1; overflow:hidden; min-width:60px; }
+.bar { height:100%; border-radius:8px; min-width:4px; transition:width .3s ease; }
+.bar-cell span { font-size:13px; font-weight:700; white-space:nowrap; min-width:40px; }
 
-/* Cost tiles */
-.cost-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+/* === COST TILES === */
+.cost-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .cost-tile {
-    background:#f8fafc; border-radius:10px; padding:20px; text-align:center;
+    background:#faf9f7; border-radius:14px; padding:18px; text-align:center;
     cursor:pointer; transition:all .2s; border:2px solid transparent;
 }
-.cost-tile:hover { border-color:#2563eb; background:#eff6ff; }
-.cost-tile.expanded { border-color:#2563eb; }
-.cost-tile .pct { font-size:32px; font-weight:700; color:#2563eb; }
-.cost-tile .amt { font-size:16px; color:#475569; margin-top:4px; direction:ltr; }
-.cost-tile .lbl { font-size:14px; color:#64748b; margin-top:8px; }
+.cost-tile:hover { border-color:#0d9488; background:#f0fdfa; }
+.cost-tile.expanded { border-color:#0d9488; }
+.cost-tile .pct { font-size:28px; font-weight:800; color:#0d9488; }
+.cost-tile .amt { font-size:14px; color:#64748b; margin-top:2px; direction:ltr; }
+.cost-tile .lbl { font-size:13px; color:#94a3b8; margin-top:6px; font-weight:500; }
 .cost-detail-panel {
-    display:none; margin-top:16px; background:#f8fafc;
-    border-radius:10px; padding:20px;
+    display:none; margin-top:12px; background:#faf9f7;
+    border-radius:14px; padding:16px;
 }
 .cost-detail-panel.visible { display:block; }
-.cdi { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #e2e8f0; font-size:14px; }
+.cdi { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f0ee; font-size:13px; }
 .cdi:last-child { border-bottom:none; }
 
-/* Treatment selector */
+/* === TREATMENT SELECTOR === */
 .selector-grid {
-    display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
-    gap:12px; margin-bottom:20px;
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:10px; margin-bottom:16px;
 }
 .selector-card {
-    background:#f8fafc; border:2px solid #e2e8f0; border-radius:10px;
-    padding:16px; text-align:center; cursor:pointer; transition:all .2s;
+    background:#faf9f7; border:2px solid #f1f0ee; border-radius:14px;
+    padding:14px 10px; text-align:center; cursor:pointer; transition:all .2s;
+    min-height:44px;
 }
-.selector-card:hover { border-color:#2563eb; background:#eff6ff; }
-.selector-card.selected { border-color:#2563eb; background:#eff6ff; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
-.selector-icon { font-size:28px; margin-bottom:8px; }
-.selector-name { font-weight:600; font-size:13px; color:#1e3a5f; }
-.selector-meta { font-size:12px; color:#64748b; margin-top:4px; }
-.bom-detail { background:#f8fafc; border-radius:10px; padding:24px; margin-top:16px; }
-.bom-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
-.bom-header h3 { font-size:18px; color:#1e3a5f; border:none; margin:0; padding:0; }
+.selector-card:hover { border-color:#0d9488; background:#f0fdfa; }
+.selector-card.selected { border-color:#0d9488; background:#f0fdfa; box-shadow:0 0 0 3px rgba(13,148,136,.12); }
+.selector-icon { font-size:26px; margin-bottom:6px; }
+.selector-name { font-weight:600; font-size:12px; color:#0f172a; }
+.selector-meta { font-size:11px; color:#94a3b8; margin-top:3px; }
+.bom-detail { background:#faf9f7; border-radius:14px; padding:20px; margin-top:12px; }
+.bom-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+.bom-header h3 { font-size:16px; color:#0f172a; font-weight:700; border:none; margin:0; padding:0; }
 .expiry-warning { color:#dc2626; font-weight:600; font-size:12px; }
-.expiry-ok { color:#16a34a; font-size:12px; }
+.expiry-ok { color:#0d9488; font-size:12px; }
+@media(max-width:960px) { .selector-grid { grid-template-columns:repeat(2,1fr); } }
 
-/* Patient detail table */
-.pd-table { width:100%; border-collapse:collapse; font-size:13px; }
-.pd-table th { background:white; color:#64748b; font-weight:600; padding:8px 10px; text-align:right; font-size:12px; border-bottom:1px solid #e2e8f0; }
-.pd-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+/* === PATIENT DETAIL TABLE === */
+.pd-table { width:100%; border-collapse:collapse; font-size:12px; min-width:400px; }
+.pd-table th { background:white; color:#94a3b8; font-weight:600; padding:8px 10px; text-align:right; font-size:11px; border-bottom:1px solid #f1f0ee; }
+.pd-table td { padding:8px 10px; border-bottom:1px solid #f5f4f2; }
 
-/* Alerts & insights */
-.alert { display:flex; gap:16px; padding:20px; border-radius:10px; margin-bottom:16px; }
-.alert-red { background:#fef2f2; border:1px solid #fecaca; }
-.alert-orange { background:#fff7ed; border:1px solid #fed7aa; }
-.alert-icon { font-size:28px; }
-.alert-title { font-weight:700; font-size:16px; margin-bottom:4px; }
-.alert-detail { font-size:13px; color:#64748b; margin-top:4px; }
-.recommendation { margin-top:8px; padding:10px; background:white; border-radius:6px; font-size:13px; line-height:1.8; }
-.insight-row { display:flex; gap:12px; padding:16px; background:#f0f9ff; border-radius:8px; margin-bottom:12px; border-right:4px solid #2563eb; }
+/* === QUICK INSIGHTS (overview page) === */
+.insight-row { display:flex; gap:12px; padding:14px 16px; background:#f0fdfa; border-radius:12px; margin-bottom:10px; border-right:4px solid #0d9488; }
 .insight-row.warning { background:#fffbeb; border-right-color:#f59e0b; }
 
-/* Agent section */
-.agent-section { background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%); border:1px solid #bae6fd; }
-.agent-header-bar { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+/* === AGENT SECTION === */
+.agent-section { background:linear-gradient(135deg,#f0fdfa 0%,#e0f8f5 100%); border:1px solid #99f6e4; }
+.agent-header-bar { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
 .agent-avatar {
-    width:48px; height:48px; background:linear-gradient(135deg,#2563eb,#7c3aed);
+    width:44px; height:44px; background:linear-gradient(135deg,#0d9488,#0f172a);
     border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-size:24px; color:white;
+    font-size:22px; color:white;
 }
-.agent-title { font-size:20px; font-weight:700; color:#1e3a5f; }
-.agent-subtitle { font-size:13px; color:#64748b; }
+.agent-title { font-size:18px; font-weight:700; color:#0f172a; }
+.agent-subtitle { font-size:12px; color:#64748b; }
 .agent-bubble {
-    background:white; border-radius:12px; padding:20px; margin-bottom:16px;
-    border-right:4px solid; box-shadow:0 1px 3px rgba(0,0,0,.06);
+    background:white; border-radius:14px; padding:18px; margin-bottom:12px;
+    border-right:4px solid; box-shadow:0 1px 3px rgba(0,0,0,.04);
 }
 .ab-warning { border-right-color:#f59e0b; }
-.ab-info { border-right-color:#2563eb; }
+.ab-info { border-right-color:#0d9488; }
 .ab-success { border-right-color:#16a34a; }
 .ab-insight { border-right-color:#7c3aed; }
-.ab-title { font-weight:700; font-size:15px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
-.ab-badge { display:inline-block; background:#eff6ff; color:#2563eb; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
-.ab-body { font-size:14px; line-height:1.8; color:#334155; }
+.ab-title { font-weight:700; font-size:14px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.ab-badge { display:inline-block; background:#f0fdfa; color:#0d9488; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.ab-body { font-size:13px; line-height:1.8; color:#334155; }
 .evidence-btn {
-    display:inline-block; margin-top:12px; padding:6px 16px;
-    background:white; border:1px solid #e2e8f0; border-radius:6px;
-    cursor:pointer; font-size:12px; font-family:inherit; color:#2563eb;
-    transition:all .2s;
+    display:inline-block; margin-top:10px; padding:8px 18px;
+    background:white; border:1px solid #e2e8f0; border-radius:10px;
+    cursor:pointer; font-size:12px; font-family:inherit; color:#0d9488;
+    transition:all .15s; min-height:36px; font-weight:500;
 }
-.evidence-btn:hover { background:#eff6ff; }
+.evidence-btn:hover { background:#f0fdfa; border-color:#0d9488; }
 .evidence-panel {
-    display:none; margin-top:12px; background:white; border-radius:8px;
-    padding:16px; border:1px solid #e2e8f0; max-height:400px; overflow-y:auto;
+    display:none; margin-top:10px; background:white; border-radius:12px;
+    padding:14px; border:1px solid #f1f0ee; max-height:400px; overflow-y:auto;
 }
 .evidence-panel.visible { display:block; }
 
-/* Bank page */
-.balance-chart { width:100%; height:200px; position:relative; margin:24px 0 0; }
-.balance-chart canvas { width:100% !important; height:100% !important; }
-.recon-section { margin-bottom:24px; }
-.recon-section h3 { font-size:16px; color:#1e3a5f; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; }
+/* === BANK PAGE === */
+.recon-section { margin-bottom:20px; }
+.recon-section h3 { font-size:15px; color:#0f172a; font-weight:700; margin-bottom:10px; border-bottom:1px solid #f1f0ee; padding-bottom:8px; }
 .recon-match {
-    display:flex; gap:12px; align-items:center; padding:12px 16px;
-    background:#f0fdf4; border-radius:8px; margin-bottom:8px; border-right:3px solid #16a34a;
+    display:flex; gap:12px; align-items:center; padding:14px 16px;
+    background:#f0fdf4; border-radius:12px; margin-bottom:8px; border-right:3px solid #16a34a;
 }
 .recon-unmatched-bank {
-    display:flex; gap:12px; align-items:center; padding:12px 16px;
-    background:#fffbeb; border-radius:8px; margin-bottom:8px; border-right:3px solid #f59e0b;
+    display:flex; gap:12px; align-items:center; padding:14px 16px;
+    background:#fffbeb; border-radius:12px; margin-bottom:8px; border-right:3px solid #f59e0b;
 }
 .recon-unmatched-inv {
-    display:flex; gap:12px; align-items:center; padding:12px 16px;
-    background:#fef2f2; border-radius:8px; margin-bottom:8px; border-right:3px solid #dc2626;
+    display:flex; gap:12px; align-items:center; padding:14px 16px;
+    background:#fef2f2; border-radius:12px; margin-bottom:8px; border-right:3px solid #dc2626;
 }
-.recon-icon { font-size:20px; flex-shrink:0; }
+.recon-icon { font-size:18px; flex-shrink:0; }
 .recon-body { flex:1; font-size:13px; line-height:1.6; }
-.recon-body strong { color:#1e3a5f; }
-.recon-amount { font-weight:700; font-variant-numeric:tabular-nums; direction:ltr; white-space:nowrap; }
+.recon-body strong { color:#0f172a; }
+.recon-amount { font-weight:700; font-variant-numeric:tabular-nums; direction:ltr; white-space:nowrap; font-size:14px; }
 .recon-summary {
-    display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;
 }
 .recon-stat {
-    background:#f8fafc; border-radius:10px; padding:16px; text-align:center;
+    background:#faf9f7; border-radius:14px; padding:16px; text-align:center;
+    border:1px solid #f1f0ee;
 }
-.recon-stat .rs-val { font-size:24px; font-weight:700; color:#1e3a5f; }
-.recon-stat .rs-lbl { font-size:13px; color:#64748b; margin-top:4px; }
+.recon-stat .rs-val { font-size:22px; font-weight:700; color:#0f172a; }
+.recon-stat .rs-lbl { font-size:12px; color:#94a3b8; margin-top:4px; }
 @media(max-width:700px) { .recon-summary { grid-template-columns:1fr; } }
 
-/* Footer */
-.footer { text-align:center; padding:32px; color:#94a3b8; font-size:13px; border-top:1px solid #e2e8f0; margin-top:16px; }
-.footer .brand { font-weight:700; color:#2563eb; font-size:15px; }
+/* === FOOTER === */
+.footer { text-align:center; padding:28px 16px; color:#94a3b8; font-size:12px; border-top:1px solid #f1f0ee; margin-top:12px; }
+.footer .brand { font-weight:700; color:#0d9488; font-size:14px; }
+
+/* === ALERTS === */
+.alert { display:flex; gap:14px; padding:18px; border-radius:14px; margin-bottom:14px; }
+.alert-red { background:#fef2f2; border:1px solid #fecaca; }
+.alert-orange { background:#fff7ed; border:1px solid #fed7aa; }
+.alert-icon { font-size:24px; }
+.alert-title { font-weight:700; font-size:15px; margin-bottom:4px; }
+.alert-detail { font-size:12px; color:#64748b; margin-top:4px; }
+.recommendation { margin-top:8px; padding:10px 12px; background:white; border-radius:10px; font-size:13px; line-height:1.8; }
 """
 
 # ─── JavaScript ─────────────────────────────────────────────────────────
@@ -747,6 +834,20 @@ function computeUsageRates(evts) {
     return u;
 }
 
+// === MORE MENU ===
+function toggleMore(e) {
+    e.stopPropagation();
+    var menu = document.getElementById('moreMenu');
+    var backdrop = document.getElementById('moreBackdrop');
+    var vis = menu.classList.contains('visible');
+    menu.classList.toggle('visible');
+    backdrop.classList.toggle('visible');
+}
+function closeMore() {
+    document.getElementById('moreMenu').classList.remove('visible');
+    document.getElementById('moreBackdrop').classList.remove('visible');
+}
+
 // === PAGE NAVIGATION ===
 function showPage(id) {
     document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display='none'; });
@@ -812,12 +913,24 @@ function renderPage(id) {
 
 // --- Overview ---
 function renderOverview(evts) {
+    // Hero balance card
+    var txs = DATA.bankTransactions;
+    if (txs && txs.length > 0) {
+        var lastBal = txs[txs.length - 1].balanceAfter;
+        var balClr = lastBal >= 0 ? '#4ade80' : '#f87171';
+        document.getElementById('heroBalance').innerHTML = '<span style="color:'+balClr+'">'+ils(lastBal)+'</span>';
+        document.getElementById('heroSub').textContent = txs.length + ' תנועות · עודכן ' + txs[txs.length-1].date;
+    } else {
+        document.getElementById('heroBalance').textContent = ils(STATIC.currentBalance);
+        document.getElementById('heroSub').textContent = '';
+    }
+
     var kpi = computeKPIs(evts);
     document.getElementById('kpiGrid').innerHTML =
-        tile('הכנסה כוללת', ils(kpi.revenue)) +
-        tile('רווח גולמי', ils(kpi.profit)) +
-        tile('מרג׳ין ממוצע', kpi.margin + '%') +
-        tile('מספר טיפולים', kpi.count.toLocaleString('he-IL'));
+        tile('💰', 'הכנסה כוללת', ils(kpi.revenue), '#0d9488') +
+        tile('📈', 'רווח גולמי', ils(kpi.profit), kpi.profit >= 0 ? '#16a34a' : '#dc2626') +
+        tile('📊', 'מרג׳ין ממוצע', kpi.margin + '%', parseFloat(kpi.margin) >= 40 ? '#16a34a' : '#f59e0b') +
+        tile('🦷', 'מספר טיפולים', kpi.count.toLocaleString('he-IL'), '#7c3aed');
 
     var bd = computeCosts(evts);
     var items = [
@@ -843,20 +956,23 @@ function renderOverview(evts) {
     var best = treats[0], worst = treats[treats.length-1];
     var h = '';
     if (best) {
-        h += '<div class="insight-row"><div style="font-size:22px">✅</div><div style="font-size:14px">' +
-             '<strong>הטיפול הכי רווחי: '+best.name+'</strong> (מרג׳ין '+best.margin+'%)<br>' +
-             'רווח ממוצע של '+ils(best.avgProfit)+' לטיפול</div></div>';
+        h += '<div class="insight-row"><div style="font-size:20px;flex-shrink:0">✅</div><div style="font-size:13px;line-height:1.7">' +
+             '<strong>'+best.name+'</strong> — הכי רווחי<br>' +
+             '<span style="color:#0d9488;font-weight:700;font-size:16px">'+best.margin+'%</span> מרג׳ין · '+ils(best.avgProfit)+' רווח ממוצע</div></div>';
     }
-    if (worst) {
-        h += '<div class="insight-row warning"><div style="font-size:22px">⚠️</div><div style="font-size:14px">' +
-             '<strong>הטיפול הכי פחות רווחי: '+worst.name+'</strong> (מרג׳ין '+worst.margin+'%)<br>' +
-             'מחיר ממוצע '+ils(worst.avgRev)+' מול עלות '+ils(worst.avgCost)+'</div></div>';
+    if (worst && worst.name !== best.name) {
+        h += '<div class="insight-row warning"><div style="font-size:20px;flex-shrink:0">⚠️</div><div style="font-size:13px;line-height:1.7">' +
+             '<strong>'+worst.name+'</strong> — דורש תשומת לב<br>' +
+             '<span style="color:#f59e0b;font-weight:700;font-size:16px">'+worst.margin+'%</span> מרג׳ין · עלות '+ils(worst.avgCost)+' מול מחיר '+ils(worst.avgRev)+'</div></div>';
     }
-    document.getElementById('overviewInsights').innerHTML = h ? '<h2><span class="emoji">💡</span> תובנות מהירות</h2>' + h : '';
+    document.getElementById('overviewInsights').innerHTML = h ? '<h2><span class="emoji">💡</span> במבט חטוף</h2>' + h : '';
 }
 
-function tile(lbl, val) {
-    return '<div class="kpi-tile"><div class="kpi-label">'+lbl+'</div><div class="kpi-value">'+val+'</div></div>';
+function tile(icon, lbl, val, accent) {
+    return '<div class="kpi-tile" style="--kpi-accent:'+accent+'">' +
+           '<div class="kpi-icon">'+icon+'</div>' +
+           '<div class="kpi-label">'+lbl+'</div>' +
+           '<div class="kpi-value" style="color:'+accent+'">'+val+'</div></div>';
 }
 
 var _activeCostDetail = null;
@@ -866,17 +982,17 @@ function showCostDetail(id) {
     _activeCostDetail = id;
     var h = '<div class="cost-detail-panel visible">';
     if (id === 'labor') {
-        h += '<div style="font-weight:600;margin-bottom:8px;color:#1e3a5f">פירוט כוח אדם (עלות מעסיק חודשית)</div>';
+        h += '<div style="font-weight:600;margin-bottom:8px;color:#0f172a">פירוט כוח אדם (עלות מעסיק חודשית)</div>';
         STATIC.employees.forEach(function(e){
             h += '<div class="cdi"><span>'+e.name+' ('+e.role+')</span><span style="direction:ltr">'+ils(e.totalCost)+' / חודש</span></div>';
         });
     } else if (id === 'over') {
-        h += '<div style="font-weight:600;margin-bottom:8px;color:#1e3a5f">פירוט תקורה (חודשי)</div>';
+        h += '<div style="font-weight:600;margin-bottom:8px;color:#0f172a">פירוט תקורה (חודשי)</div>';
         STATIC.overheadPools.forEach(function(p){
             h += '<div class="cdi"><span>'+p.name+'</span><span style="direction:ltr">'+ils(p.monthlyCost)+' / חודש</span></div>';
         });
     } else if (id === 'mats') {
-        h += '<div style="font-weight:600;margin-bottom:8px;color:#1e3a5f">8 חומרים מובילים לפי צריכה</div>';
+        h += '<div style="font-weight:600;margin-bottom:8px;color:#0f172a">8 חומרים מובילים לפי צריכה</div>';
         var evts = window._costEvts || [];
         var spend = {};
         evts.forEach(function(e){ e.materialsUsed.forEach(function(m){
@@ -887,7 +1003,7 @@ function showCostDetail(id) {
             h += '<div class="cdi"><span>'+s[0]+'</span><span style="direction:ltr">'+ils(s[1])+'</span></div>';
         });
     } else if (id === 'lab') {
-        h += '<div style="font-weight:600;margin-bottom:8px;color:#1e3a5f">עלויות מעבדה לפי סוג טיפול</div>';
+        h += '<div style="font-weight:600;margin-bottom:8px;color:#0f172a">עלויות מעבדה לפי סוג טיפול</div>';
         var evts = window._costEvts || [];
         var byType = {};
         evts.forEach(function(e){ if(e.labCost>0) byType[e.serviceName]=(byType[e.serviceName]||0)+e.labCost; });
@@ -905,7 +1021,7 @@ function renderTreatments(evts) {
     var h = '<table><thead><tr><th>סוג טיפול</th><th>כמות</th><th>מחיר ממוצע</th><th>עלות ממוצעת</th><th>רווח ממוצע</th><th>מרג׳ין</th></tr></thead><tbody>';
     treats.forEach(function(t, i) {
         var bw = Math.min(Math.max(Math.round(t.margin),0),100);
-        var clr = t.margin>=50?'#16a34a':t.margin>=35?'#ea580c':'#dc2626';
+        var clr = t.margin>=50?'#0d9488':t.margin>=35?'#f59e0b':'#dc2626';
         var matP = t.cost?pct1(t.mats/t.cost*100):'0';
         var labP = t.cost?pct1(t.lab/t.cost*100):'0';
         var lbrP = t.cost?pct1(t.labor/t.cost*100):'0';
@@ -916,7 +1032,7 @@ function renderTreatments(evts) {
              '<td class="num">'+ils(t.avgRev)+'</td>' +
              '<td class="num">'+ils(t.avgCost)+'</td>' +
              '<td class="num bold">'+ils(t.avgProfit)+'</td>' +
-             '<td class="num"><div class="bar-cell"><div class="bar" style="width:'+bw+'%;background:'+clr+'"></div><span>'+t.margin+'%</span></div></td>' +
+             '<td class="num"><div class="bar-cell"><span style="color:'+clr+'">'+t.margin+'%</span><div class="bar-track"><div class="bar" style="width:'+bw+'%;background:'+clr+'"></div></div></div></td>' +
              '</tr>';
         h += '<tr class="detail-row" id="tr-'+i+'" style="display:none"><td colspan="6"><div class="detail-content"><div class="detail-grid">' +
              '<div class="detail-item"><span class="detail-label">חומרים</span><span class="detail-value">'+ils(t.mats)+' ('+matP+'%)</span></div>' +
@@ -991,7 +1107,7 @@ function renderPatients(evts) {
         var txSet = {}; p.treatments.forEach(function(t){txSet[t]=1;}); var txList = Object.keys(txSet).join(', ');
         // Build drill-down mini-table
         var sorted = p.events.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,10);
-        var detail = '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1e3a5f">10 טיפולים אחרונים</div>';
+        var detail = '<div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#0f172a">10 טיפולים אחרונים</div>';
         detail += '<table class="pd-table"><thead><tr><th>תאריך</th><th>טיפול</th><th>הכנסה</th><th>עלות</th><th>רווח</th></tr></thead><tbody>';
         sorted.forEach(function(ev){
             var pc = ev.grossProfit>0?'#16a34a':'#dc2626';
@@ -1061,7 +1177,7 @@ function renderInsights(evts) {
     }
     var tmEvidence = '<table><thead><tr><th>טיפול</th><th>כמות</th><th>מרג׳ין</th><th>רווח ממוצע</th><th>סה"כ רווח</th></tr></thead><tbody>';
     treats.forEach(function(t){
-        var mc = t.margin>=50?'#16a34a':t.margin>=35?'#ea580c':'#dc2626';
+        var mc = t.margin>=50?'#0d9488':t.margin>=35?'#f59e0b':'#dc2626';
         tmEvidence += '<tr><td class="name">'+t.name+'</td><td class="num">'+t.count+'</td>' +
                       '<td class="num" style="color:'+mc+';font-weight:600">'+t.margin+'%</td>' +
                       '<td class="num">'+ils(t.avgProfit)+'</td><td class="num bold">'+ils(Math.round(t.profit))+'</td></tr>';
@@ -1168,10 +1284,10 @@ function renderBank() {
     // KPIs
     var balClr = last.balanceAfter >= 0 ? '#16a34a' : '#dc2626';
     document.getElementById('bankKPIs').innerHTML =
-        '<div class="kpi-tile"><div class="kpi-label">יתרה נוכחית</div><div class="kpi-value" style="color:'+balClr+'">'+ils(last.balanceAfter)+'</div></div>' +
-        tile('סה״כ נכנס', ils(totalIn)) +
-        tile('סה״כ יצא', ils(totalOut)) +
-        tile('מספר תנועות', txs.length.toLocaleString('he-IL'));
+        tile('🏦', 'יתרה נוכחית', ils(last.balanceAfter), balClr) +
+        tile('📥', 'סה״כ נכנס', ils(totalIn), '#16a34a') +
+        tile('📤', 'סה״כ יצא', ils(totalOut), '#dc2626') +
+        tile('📋', 'מספר תנועות', txs.length.toLocaleString('he-IL'), '#64748b');
 
     // Count real vs synthetic
     var realCount = txs.filter(function(t){return t.source==='discount_bank';}).length;
@@ -1179,7 +1295,7 @@ function renderBank() {
 
     // Source summary
     var srcH = '<div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px">' +
-               '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2563eb;margin-left:4px"></span> בנק דיסקונט (נתונים אמיתיים): '+realCount+'</span>' +
+               '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#0d9488;margin-left:4px"></span> בנק דיסקונט (נתונים אמיתיים): '+realCount+'</span>' +
                '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;margin-left:4px"></span> סימולציה: '+synthCount+'</span></div>';
 
     // Transactions table (last 50)
@@ -1190,9 +1306,9 @@ function renderBank() {
         var balC = t.balanceAfter < 10000 ? 'color:#dc2626;font-weight:600' : '';
         var isReal = t.source === 'discount_bank';
         var srcBadge = isReal ?
-            '<span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">דיסקונט</span>' :
+            '<span style="background:#f0fdfa;color:#0d9488;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">דיסקונט</span>' :
             '<span style="background:#f1f5f9;color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:11px">סימולציה</span>';
-        var rowBg = isReal ? 'background:#f0f7ff;' : '';
+        var rowBg = isReal ? 'background:#f0fdfa;' : '';
         h += '<tr style="'+rowBg+'">' +
              '<td class="num" style="direction:ltr;white-space:nowrap">'+t.date+'</td>' +
              '<td>'+srcBadge+'</td>' +
