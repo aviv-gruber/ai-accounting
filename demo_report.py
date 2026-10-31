@@ -267,19 +267,10 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
         <ul>
             <li><a href="#" class="active" data-page="page-overview" onclick="showPage('page-overview');return false;"><span class="nav-icon">🏠</span><span class="nav-label">ראשי</span></a></li>
             <li><a href="#" data-page="page-treatments" onclick="showPage('page-treatments');return false;"><span class="nav-icon">💰</span><span class="nav-label">רווחיות</span></a></li>
+            <li><a href="#" data-page="page-materials" onclick="showPage('page-materials');return false;"><span class="nav-icon">🔧</span><span class="nav-label">מלאי</span></a></li>
             <li><a href="#" data-page="page-insights" onclick="showPage('page-insights');return false;"><span class="nav-icon">🤖</span><span class="nav-label">תובנות</span></a></li>
             <li><a href="#" data-page="page-bank" onclick="showPage('page-bank');return false;"><span class="nav-icon">🏦</span><span class="nav-label">בנק</span></a></li>
-            <li class="mobile-only"><a href="#" onclick="toggleMore(event);return false;"><span class="nav-icon">☰</span><span class="nav-label">עוד</span></a>
-                <div class="more-menu" id="moreMenu">
-                    <a href="#" data-page="page-materials" onclick="showPage('page-materials');closeMore();return false;"><span class="nav-icon">🔧</span> חומרים ומלאי</a>
-                    <a href="#" data-page="page-patients" onclick="showPage('page-patients');closeMore();return false;"><span class="nav-icon">👥</span> מטופלים</a>
-                </div>
-            </li>
-            <!-- Desktop-only items (hidden on mobile, visible in sidebar) -->
-            <li class="desktop-only"><a href="#" data-page="page-materials" onclick="showPage('page-materials');return false;"><span class="nav-icon">🔧</span><span class="nav-label">חומרים ומלאי</span></a></li>
-            <li class="desktop-only"><a href="#" data-page="page-patients" onclick="showPage('page-patients');return false;"><span class="nav-icon">👥</span><span class="nav-label">מטופלים</span></a></li>
         </ul>
-        <div class="more-backdrop" id="moreBackdrop" onclick="closeMore()"></div>
     </nav>
 
     <div class="main-content">
@@ -318,12 +309,17 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
             <div class="card" id="overviewInsights"></div>
         </div>
 
-        <!-- PAGE: Treatment Profitability -->
+        <!-- PAGE: Treatment Profitability + Patients -->
         <div class="page" id="page-treatments" style="display:none;">
             <div class="card">
                 <h2><span class="emoji">📊</span> כמה את מרוויחה מכל טיפול?</h2>
                 <p class="hint">לחצי על שורה לפירוט עלויות</p>
                 <div class="table-scroll" id="treatmentTableContainer"></div>
+            </div>
+            <div class="card">
+                <h2><span class="emoji">👥</span> המטופלים הרווחיים ביותר</h2>
+                <p class="hint">לחצי על שורה לפירוט הטיפולים</p>
+                <div class="table-scroll" id="patientTableContainer"></div>
             </div>
         </div>
 
@@ -334,15 +330,6 @@ def _build_html(data_json: str, static_json: str, business_name: str) -> str:
                 <p class="hint">בחרי טיפול לצפייה בפירוט החומרים הנדרשים</p>
                 <div class="selector-grid" id="selectorGrid"></div>
                 <div id="bomDetail"></div>
-            </div>
-        </div>
-
-        <!-- PAGE: Patients -->
-        <div class="page" id="page-patients" style="display:none;">
-            <div class="card">
-                <h2><span class="emoji">👥</span> המטופלים הרווחיים ביותר</h2>
-                <p class="hint">לחצי על שורה לפירוט הטיפולים</p>
-                <div class="table-scroll" id="patientTableContainer"></div>
             </div>
         </div>
 
@@ -444,18 +431,6 @@ body {
 .nav-sidebar a.active { background:#f0fdfa; color:#0d9488; font-weight:600; border-right-color:#0d9488; }
 .nav-sidebar .nav-icon { font-size:18px; width:24px; text-align:center; flex-shrink:0; }
 .nav-sidebar .nav-label { white-space:nowrap; }
-.nav-sidebar li.mobile-only { display:none; }
-/* "More" sub-items hidden on desktop sidebar — shown inline */
-.more-menu { display:none; position:absolute; bottom:100%; left:0; right:0;
-    background:white; border-radius:16px 16px 0 0; box-shadow:0 -4px 20px rgba(0,0,0,.12);
-    padding:8px 0; z-index:101; }
-.more-menu.visible { display:block; }
-.more-menu a { display:flex; align-items:center; gap:10px; padding:14px 20px;
-    color:#64748b; text-decoration:none; font-size:14px; font-weight:500;
-    min-height:48px; transition:background .15s; }
-.more-menu a:hover { background:#f0fdfa; color:#0d9488; }
-.more-backdrop { display:none; position:fixed; inset:0; z-index:99; }
-.more-backdrop.visible { display:block; }
 
 /* === NAVIGATION — Mobile bottom bar (5 tabs) === */
 @media(max-width:960px) {
@@ -471,8 +446,6 @@ body {
     }
     .nav-sidebar ul { display:flex; width:100%; padding:0; }
     .nav-sidebar li { flex:1; margin:0; }
-    .nav-sidebar li.desktop-only { display:none; }
-    .nav-sidebar li.mobile-only { display:block; }
     .nav-sidebar a {
         padding:8px 4px 6px; text-align:center; font-size:10px; font-weight:500;
         border-right:none; border-top:2px solid transparent;
@@ -834,20 +807,6 @@ function computeUsageRates(evts) {
     return u;
 }
 
-// === MORE MENU ===
-function toggleMore(e) {
-    e.stopPropagation();
-    var menu = document.getElementById('moreMenu');
-    var backdrop = document.getElementById('moreBackdrop');
-    var vis = menu.classList.contains('visible');
-    menu.classList.toggle('visible');
-    backdrop.classList.toggle('visible');
-}
-function closeMore() {
-    document.getElementById('moreMenu').classList.remove('visible');
-    document.getElementById('moreBackdrop').classList.remove('visible');
-}
-
 // === PAGE NAVIGATION ===
 function showPage(id) {
     document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); p.style.display='none'; });
@@ -904,9 +863,8 @@ function updateInfo() {
 function renderPage(id) {
     var evts = getFiltered();
     if (id === 'page-overview') renderOverview(evts);
-    else if (id === 'page-treatments') renderTreatments(evts);
+    else if (id === 'page-treatments') { renderTreatments(evts); renderPatients(evts); }
     else if (id === 'page-materials') renderMaterials();
-    else if (id === 'page-patients') renderPatients(evts);
     else if (id === 'page-insights') renderInsights(evts);
     else if (id === 'page-bank') renderBank();
 }
